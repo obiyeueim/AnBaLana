@@ -2,7 +2,6 @@ package com.khanhan.novavpn
 
 import android.app.Application
 import android.net.Uri
-import android.os.SystemClock
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,13 +13,10 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.lang.ref.WeakReference
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -58,8 +54,6 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
 
     private var wireGuardConfig: Config? = null
     private var tunnel: NovaTunnel? = null
-    private var statisticsJob: Job? = null
-    private var sessionStartedAt = 0L
 
     init {
         activeInstance = WeakReference(this)
@@ -152,7 +146,6 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
             showError("Hãy ngắt kết nối trước khi xóa cấu hình.")
             return
         }
-        statisticsJob?.cancel()
         configStore.clear()
         wireGuardConfig = null
         tunnel = null
@@ -201,7 +194,6 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun markConnected() {
         if (_uiState.value.status == ConnectionStatus.CONNECTED) return
-        sessionStartedAt = SystemClock.elapsedRealtime()
         _uiState.update {
             it.copy(
                 status = ConnectionStatus.CONNECTED,
@@ -209,13 +201,9 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
                 sessionSeconds = 0,
             )
         }
-        startStatisticsPolling()
     }
 
     private fun markDisconnected() {
-        statisticsJob?.cancel()
-        statisticsJob = null
-        sessionStartedAt = 0L
         _uiState.update {
             it.copy(
                 status = ConnectionStatus.DISCONNECTED,
@@ -229,8 +217,6 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun markFailed(message: String) {
-        statisticsJob?.cancel()
-        statisticsJob = null
         _uiState.update {
             it.copy(
                 status = ConnectionStatus.ERROR,
@@ -239,51 +225,6 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
                 errorMessage = message,
             )
         }
-    }
-
-    private fun startStatisticsPolling() {
-        statisticsJob?.cancel()
-        val activeTunnel = tunnel ?: return
-        statisticsJob = viewModelScope.launch(Dispatchers.IO) {
-            var previousRx = 0L
-            var previousTx = 0L
-            var previousTimestamp = SystemClock.elapsedRealtime()
-            var hasBaseline = false
-
-            while (isActive && _uiState.value.status == ConnectionStatus.CONNECTED) {
-                try {
-                    val stats = backend.getStatistics(activeTunnel)
-                    val now = SystemClock.elapsedRealtime()
-                    val rx = stats.totalRx()
-                    val tx = stats.totalTx()
-                    val elapsedMs = (now - previousTimestamp).coerceAtLeast(1L)
-
-                    val down = if (hasBaseline) bytesToMbps(rx - previousRx, elapsedMs) else 0.0
-                    val up = if (hasBaseline) bytesToMbps(tx - previousTx, elapsedMs) else 0.0
-                    hasBaseline = true
-                    previousRx = rx
-                    previousTx = tx
-                    previousTimestamp = now
-
-                    _uiState.update {
-                        it.copy(
-                            downloadMbps = down.coerceAtLeast(0.0),
-                            uploadMbps = up.coerceAtLeast(0.0),
-                            receivedBytes = rx,
-                            transmittedBytes = tx,
-                            sessionSeconds = ((now - sessionStartedAt) / 1_000L).coerceAtLeast(0L),
-                        )
-                    }
-                } catch (_: Exception) {
-                    // A temporary stats failure should not tear down a healthy tunnel.
-                }
-                delay(1_000L)
-            }
-        }
-    }
-
-    private fun bytesToMbps(byteDelta: Long, elapsedMs: Long): Double {
-        return byteDelta.toDouble() * 8.0 * 1_000.0 / elapsedMs.toDouble() / 1_000_000.0
     }
 
     private suspend fun readConfig(uri: Uri): ImportedConfig {
@@ -369,6 +310,8 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
             activeInstance?.get()?._uiState?.value?.status ?: ConnectionStatus.DISCONNECTED
 
         fun hasOverlayConfig(): Boolean = activeInstance?.get()?._uiState?.value?.hasConfig == true
+
+        fun overlayStateFlow(): StateFlow<VpnUiState>? = activeInstance?.get()?.uiState
 
         fun toggleFromOverlay(): Boolean {
             val instance = activeInstance?.get() ?: return false

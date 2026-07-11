@@ -24,9 +24,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 class FloatingOverlayService : Service() {
     private lateinit var windowManager: WindowManager
@@ -42,12 +43,14 @@ class FloatingOverlayService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
         if (Settings.canDrawOverlays(this)) showOverlay()
-        serviceScope.launch {
-            while (isActive) {
-                updatePowerButton()
-                delay(350)
+        VpnViewModel.overlayStateFlow()?.let { stateFlow ->
+            serviceScope.launch {
+                stateFlow
+                    .map { it.status }
+                    .distinctUntilChanged()
+                    .collect { updatePowerButton(it) }
             }
-        }
+        } ?: updatePowerButton(ConnectionStatus.DISCONNECTED)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -175,9 +178,9 @@ class FloatingOverlayService : Service() {
         if (!VpnViewModel.toggleFromOverlay()) openApp()
     }
 
-    private fun updatePowerButton() {
+    private fun updatePowerButton(status: ConnectionStatus) {
         val button = powerButton ?: return
-        when (VpnViewModel.overlayStatus()) {
+        when (status) {
             ConnectionStatus.CONNECTED -> {
                 button.text = "ON"
                 button.setTextColor(Color.rgb(49, 224, 123))

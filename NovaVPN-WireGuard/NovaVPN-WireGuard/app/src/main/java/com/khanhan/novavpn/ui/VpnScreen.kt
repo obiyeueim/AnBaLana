@@ -3,12 +3,6 @@ package com.khanhan.novavpn.ui
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -18,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -55,7 +48,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -68,7 +60,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.khanhan.novavpn.ConnectionStatus
 import com.khanhan.novavpn.VpnUiState
-import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -114,7 +105,7 @@ fun VpnScreen(
                 enabled = !state.isBusy,
                 onClick = onToggleVpn,
             )
-            SessionTimer(state.sessionSeconds, state.status == ConnectionStatus.CONNECTED)
+            GameModeStatus(state.status == ConnectionStatus.CONNECTED)
             Spacer(Modifier.height(22.dp))
 
             AnimatedVisibility(visible = state.errorMessage != null) {
@@ -135,7 +126,7 @@ fun VpnScreen(
                 onToggle = onToggleOverlay,
             )
             Spacer(Modifier.height(12.dp))
-            StatsRow(state)
+            LightweightModeCard(state.status == ConnectionStatus.CONNECTED)
             Spacer(Modifier.height(18.dp))
             SecurityNote()
             Spacer(Modifier.height(18.dp))
@@ -319,37 +310,13 @@ private fun PowerOrb(
         status == ConnectionStatus.ERROR -> NovaError
         else -> Color(0xFF8BA098)
     }
-    val transition = rememberInfiniteTransition(label = "powerAnimation")
-    val rotation by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(if (busy) 1_500 else 10_000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "ringRotation",
-    )
-    val pulse by transition.animateFloat(
-        initialValue = 0.96f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1_600, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "powerPulse",
-    )
-
     Box(
         modifier = Modifier
             .size(264.dp)
             .semantics { contentDescription = if (active) "Ngắt kết nối VPN" else "Kết nối VPN" },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { rotationZ = rotation },
-        ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
             val center = this.center
             val radii = listOf(size.minDimension * 0.47f, size.minDimension * 0.39f, size.minDimension * 0.31f)
             radii.forEachIndexed { index, radius ->
@@ -374,10 +341,6 @@ private fun PowerOrb(
         Box(
             modifier = Modifier
                 .size(144.dp)
-                .graphicsLayer {
-                    scaleX = if (active) pulse else 1f
-                    scaleY = if (active) pulse else 1f
-                }
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
@@ -427,21 +390,21 @@ private fun PowerOrb(
 }
 
 @Composable
-private fun SessionTimer(seconds: Long, active: Boolean) {
+private fun GameModeStatus(active: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            "THỜI GIAN PHIÊN",
+            "CHẾ ĐỘ NHẸ CHO GAME",
             color = NovaMuted.copy(alpha = 0.65f),
             fontWeight = FontWeight.Bold,
             fontSize = 8.sp,
             letterSpacing = 1.4.sp,
         )
         Text(
-            text = formatDuration(seconds),
+            text = if (active) "VPN đang chạy • Không đo tốc độ nền" else "Không polling • Không tạo độ trễ",
             color = if (active) NovaAccent else NovaMuted,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
-            letterSpacing = 1.5.sp,
+            fontSize = 12.sp,
+            letterSpacing = 0.2.sp,
         )
     }
 }
@@ -524,61 +487,28 @@ private fun ConfigCard(
 }
 
 @Composable
-private fun StatsRow(state: VpnUiState) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        MetricCard(
-            modifier = Modifier.weight(1f),
-            label = "TẢI XUỐNG",
-            value = String.format(Locale.US, "%.1f", state.downloadMbps),
-            unit = "Mbps",
-            total = formatBytes(state.receivedBytes),
-            accent = NovaAccent,
-            arrow = "↓",
-        )
-        MetricCard(
-            modifier = Modifier.weight(1f),
-            label = "TẢI LÊN",
-            value = String.format(Locale.US, "%.1f", state.uploadMbps),
-            unit = "Mbps",
-            total = formatBytes(state.transmittedBytes),
-            accent = Color(0xFF79AAFF),
-            arrow = "↑",
-        )
-    }
-}
-
-@Composable
-private fun MetricCard(
-    modifier: Modifier,
-    label: String,
-    value: String,
-    unit: String,
-    total: String,
-    accent: Color,
-    arrow: String,
-) {
+private fun LightweightModeCard(active: Boolean) {
     Card(
-        modifier = modifier.aspectRatio(1.36f),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = NovaSurface.copy(alpha = 0.82f)),
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                Box(
-                    modifier = Modifier.size(29.dp).clip(RoundedCornerShape(10.dp)).background(accent.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center,
-                ) { Text(arrow, color = accent, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
-                Text(label, color = NovaMuted, fontWeight = FontWeight.ExtraBold, fontSize = 8.sp, letterSpacing = 0.8.sp)
+            Box(
+                modifier = Modifier.size(42.dp).clip(RoundedCornerShape(14.dp))
+                    .background(if (active) NovaAccent.copy(alpha = 0.14f) else NovaSurfaceHigh),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("⚡", color = if (active) NovaAccent else NovaMuted, fontSize = 18.sp)
             }
-            Column {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(value, fontWeight = FontWeight.Bold, fontSize = 19.sp)
-                    Text(" $unit", modifier = Modifier.padding(bottom = 3.dp), color = NovaMuted, fontSize = 8.sp)
-                }
-                Text("Tổng $total", color = NovaMuted.copy(alpha = 0.76f), fontSize = 9.sp)
+            Spacer(Modifier.size(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("GAME MODE", color = NovaMuted, fontWeight = FontWeight.ExtraBold, fontSize = 8.sp, letterSpacing = 1.2.sp)
+                Text(if (active) "Đường hầm WireGuard đang hoạt động" else "Sẵn sàng kết nối nhẹ", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text("Không quét ping, không đo Mbps, không can thiệp gói game", color = NovaMuted, fontSize = 9.sp)
             }
         }
     }
@@ -810,23 +740,4 @@ private fun statusLabel(status: ConnectionStatus): String = when (status) {
     ConnectionStatus.DISCONNECTING -> "ĐANG NGẮT"
     ConnectionStatus.ERROR -> "LỖI KẾT NỐI"
     ConnectionStatus.DISCONNECTED -> "CHƯA KẾT NỐI"
-}
-
-private fun formatDuration(seconds: Long): String {
-    val hours = seconds / 3_600
-    val minutes = (seconds % 3_600) / 60
-    val remaining = seconds % 60
-    return String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, remaining)
-}
-
-private fun formatBytes(bytes: Long): String {
-    if (bytes < 1_024) return "$bytes B"
-    val units = arrayOf("KB", "MB", "GB", "TB")
-    var value = bytes.toDouble()
-    var unit = -1
-    while (value >= 1_024 && unit < units.lastIndex) {
-        value /= 1_024
-        unit++
-    }
-    return String.format(Locale.US, if (value >= 100) "%.0f %s" else "%.1f %s", value, units[unit])
 }
