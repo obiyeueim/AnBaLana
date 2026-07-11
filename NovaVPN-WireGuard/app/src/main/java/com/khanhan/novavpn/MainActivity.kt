@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.net.VpnService
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -16,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.khanhan.novavpn.ui.NovaTheme
@@ -45,6 +47,21 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf(onboarding.getBoolean("tiktok_opened", false))
                 }
                 var tiktokOpened by remember { mutableStateOf(false) }
+                var overlayEnabled by remember {
+                    mutableStateOf(Settings.canDrawOverlays(context) && FloatingOverlayService.isRunning)
+                }
+
+                val overlayPermission = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.StartActivityForResult(),
+                ) {
+                    if (Settings.canDrawOverlays(context)) {
+                        ContextCompat.startForegroundService(
+                            context,
+                            Intent(context, FloatingOverlayService::class.java),
+                        )
+                        overlayEnabled = true
+                    }
+                }
 
                 val configPicker = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.OpenDocument(),
@@ -91,6 +108,26 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                val toggleOverlay: () -> Unit = {
+                    if (overlayEnabled) {
+                        context.stopService(Intent(context, FloatingOverlayService::class.java))
+                        overlayEnabled = false
+                    } else if (Settings.canDrawOverlays(context)) {
+                        ContextCompat.startForegroundService(
+                            context,
+                            Intent(context, FloatingOverlayService::class.java),
+                        )
+                        overlayEnabled = true
+                    } else {
+                        overlayPermission.launch(
+                            Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:${context.packageName}"),
+                            ),
+                        )
+                    }
+                }
+
                 if (!onboardingComplete) {
                     TikTokGateScreen(
                         canContinue = tiktokOpened,
@@ -111,6 +148,8 @@ class MainActivity : ComponentActivity() {
                         onImportConfig = openConfig,
                         onRemoveConfig = vpnViewModel::removeConfig,
                         onDismissError = vpnViewModel::clearError,
+                        overlayEnabled = overlayEnabled,
+                        onToggleOverlay = toggleOverlay,
                     )
                 }
             }

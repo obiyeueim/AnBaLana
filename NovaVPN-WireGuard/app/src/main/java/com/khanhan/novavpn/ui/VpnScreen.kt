@@ -79,6 +79,8 @@ fun VpnScreen(
     onImportConfig: () -> Unit,
     onRemoveConfig: () -> Unit,
     onDismissError: () -> Unit,
+    overlayEnabled: Boolean,
+    onToggleOverlay: () -> Unit,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -128,6 +130,11 @@ fun VpnScreen(
                 onRemove = { showDeleteDialog = true },
             )
             Spacer(Modifier.height(12.dp))
+            OverlayControlCard(
+                enabled = overlayEnabled,
+                onToggle = onToggleOverlay,
+            )
+            Spacer(Modifier.height(12.dp))
             StatsRow(state)
             Spacer(Modifier.height(18.dp))
             SecurityNote()
@@ -153,6 +160,51 @@ fun VpnScreen(
             },
             containerColor = NovaSurfaceHigh,
         )
+    }
+}
+
+@Composable
+private fun OverlayControlCard(
+    enabled: Boolean,
+    onToggle: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = NovaSurface.copy(alpha = 0.9f)),
+        border = BorderStroke(1.dp, if (enabled) NovaAccent.copy(alpha = 0.55f) else Color(0xFF34343E)),
+        onClick = onToggle,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier.size(46.dp).clip(RoundedCornerShape(15.dp))
+                    .background(if (enabled) NovaAccent.copy(alpha = 0.14f) else NovaSurfaceHigh),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("▦", color = if (enabled) NovaAccent else NovaMuted, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.size(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("TAB NỔI VPN", color = NovaMuted, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp)
+                Text(if (enabled) "Đang hiển thị trên màn hình" else "Hiện nút điều khiển trên ứng dụng khác", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Text("Chạm ON/OFF để bật tắt • kéo để đổi vị trí", color = NovaMuted, fontSize = 9.sp)
+            }
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = if (enabled) NovaAccent.copy(alpha = 0.16f) else NovaSurfaceHigh,
+            ) {
+                Text(
+                    if (enabled) "BẬT" else "TẮT",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    color = if (enabled) NovaAccent else NovaMuted,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 9.sp,
+                )
+            }
+        }
     }
 }
 
