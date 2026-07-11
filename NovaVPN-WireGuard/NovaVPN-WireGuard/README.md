@@ -8,7 +8,7 @@
 - Kết nối/ngắt kết nối bằng một nút, xin quyền VPN đúng chuẩn Android.
 - Hiển thị endpoint, thời gian phiên và thống kê lưu lượng thực tế.
 - Màn hình mở TikTok một lần với liên kết `https://vt.tiktok.com/ZSXRafKgQ/`.
-- Tab nổi kéo thả để mở AnBaLan, mở cài đặt VPN hoặc đóng nhanh.
+- Tab nổi kéo thả; chạm ON/OFF để kết nối hoặc ngắt VPN, mở app hoặc đóng nhanh.
 - Không can thiệp trò chơi, không chứa tính năng cheat và không tự cung cấp máy chủ VPN.
 
 ## Build

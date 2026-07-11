@@ -12,6 +12,7 @@ import com.wireguard.config.BadConfigException
 import com.wireguard.config.Config
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.lang.ref.WeakReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -61,7 +62,13 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
     private var sessionStartedAt = 0L
 
     init {
+        activeInstance = WeakReference(this)
         restoreConfig()
+    }
+
+    override fun onCleared() {
+        if (activeInstance?.get() === this) activeInstance = null
+        super.onCleared()
     }
 
     fun importConfig(uri: Uri) {
@@ -353,8 +360,31 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
         val config: Config,
     )
 
-    private companion object {
-        const val MAX_CONFIG_BYTES = 256 * 1024
-        val ENDPOINT_PATTERN = Regex("(?im)^\\s*Endpoint\\s*=\\s*([^#\\r\\n]+)")
+    companion object {
+        private const val MAX_CONFIG_BYTES = 256 * 1024
+        private val ENDPOINT_PATTERN = Regex("(?im)^\\s*Endpoint\\s*=\\s*([^#\\r\\n]+)")
+        private var activeInstance: WeakReference<VpnViewModel>? = null
+
+        fun overlayStatus(): ConnectionStatus =
+            activeInstance?.get()?._uiState?.value?.status ?: ConnectionStatus.DISCONNECTED
+
+        fun hasOverlayConfig(): Boolean = activeInstance?.get()?._uiState?.value?.hasConfig == true
+
+        fun toggleFromOverlay(): Boolean {
+            val instance = activeInstance?.get() ?: return false
+            return when (instance._uiState.value.status) {
+                ConnectionStatus.CONNECTED -> {
+                    instance.disconnect()
+                    true
+                }
+                ConnectionStatus.DISCONNECTED, ConnectionStatus.ERROR -> {
+                    if (!instance._uiState.value.hasConfig) return false
+                    instance.clearError()
+                    instance.connect()
+                    true
+                }
+                ConnectionStatus.CONNECTING, ConnectionStatus.DISCONNECTING -> true
+            }
+        }
     }
 }

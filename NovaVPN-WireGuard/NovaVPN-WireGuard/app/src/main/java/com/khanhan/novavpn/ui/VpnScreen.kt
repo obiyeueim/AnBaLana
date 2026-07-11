@@ -190,7 +190,7 @@ private fun OverlayControlCard(
             Column(Modifier.weight(1f)) {
                 Text("TAB NỔI VPN", color = NovaMuted, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.2.sp)
                 Text(if (enabled) "Đang hiển thị trên màn hình" else "Hiện nút điều khiển trên ứng dụng khác", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Text("Kéo nút VPN để đổi vị trí", color = NovaMuted, fontSize = 9.sp)
+                Text("Chạm ON/OFF để bật tắt • kéo để đổi vị trí", color = NovaMuted, fontSize = 9.sp)
             }
             Surface(
                 shape = RoundedCornerShape(50),

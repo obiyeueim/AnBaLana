@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
+import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
@@ -19,10 +20,19 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import kotlin.math.abs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class FloatingOverlayService : Service() {
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
+    private var powerButton: TextView? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -32,6 +42,12 @@ class FloatingOverlayService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
         if (Settings.canDrawOverlays(this)) showOverlay()
+        serviceScope.launch {
+            while (isActive) {
+                updatePowerButton()
+                delay(350)
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -43,6 +59,7 @@ class FloatingOverlayService : Service() {
         overlayView?.let { runCatching { windowManager.removeView(it) } }
         overlayView = null
         isRunning = false
+        serviceScope.cancel()
         super.onDestroy()
     }
 
@@ -61,8 +78,9 @@ class FloatingOverlayService : Service() {
             elevation = dp(10).toFloat()
         }
 
-        val openButton = overlayButton("VPN", Color.rgb(241, 43, 67))
-        val settingsButton = overlayButton("⚙", Color.WHITE)
+        val openButton = overlayButton("OFF", Color.rgb(241, 43, 67))
+        powerButton = openButton
+        val settingsButton = overlayButton("APP", Color.WHITE)
         val closeButton = overlayButton("×", Color.rgb(160, 160, 170))
         panel.addView(openButton)
         panel.addView(settingsButton)
@@ -117,11 +135,8 @@ class FloatingOverlayService : Service() {
                 else -> false
             }
         }
-        openButton.setOnClickListener { openApp() }
-        settingsButton.setOnClickListener {
-            val intent = Intent(Settings.ACTION_VPN_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            runCatching { startActivity(intent) }
-        }
+        openButton.setOnClickListener { toggleVpn() }
+        settingsButton.setOnClickListener { openApp() }
         closeButton.setOnClickListener { stopSelf() }
 
         overlayView = panel
@@ -130,7 +145,7 @@ class FloatingOverlayService : Service() {
 
     private fun overlayButton(label: String, color: Int): TextView = TextView(this).apply {
         text = label
-        textSize = if (label == "VPN") 11f else 24f
+        textSize = if (label == "×") 24f else 11f
         setTextColor(color)
         gravity = Gravity.CENTER
         setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -150,6 +165,32 @@ class FloatingOverlayService : Service() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
         startActivity(intent)
+    }
+
+    private fun toggleVpn() {
+        if (!VpnViewModel.hasOverlayConfig() || VpnService.prepare(this) != null) {
+            openApp()
+            return
+        }
+        if (!VpnViewModel.toggleFromOverlay()) openApp()
+    }
+
+    private fun updatePowerButton() {
+        val button = powerButton ?: return
+        when (VpnViewModel.overlayStatus()) {
+            ConnectionStatus.CONNECTED -> {
+                button.text = "ON"
+                button.setTextColor(Color.rgb(49, 224, 123))
+            }
+            ConnectionStatus.CONNECTING, ConnectionStatus.DISCONNECTING -> {
+                button.text = "..."
+                button.setTextColor(Color.rgb(255, 201, 92))
+            }
+            ConnectionStatus.DISCONNECTED, ConnectionStatus.ERROR -> {
+                button.text = "OFF"
+                button.setTextColor(Color.rgb(241, 43, 67))
+            }
+        }
     }
 
     private fun createNotificationChannel() {
