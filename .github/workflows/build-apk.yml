@@ -19,7 +19,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build AnBaLan 2.4.0
+      - name: Ghép bản 2.6.0
+        run: |
+          cp -R NovaVPN-WireGuard/NovaVPN-WireGuard/NovaVPN-WireGuard/. \
+          NovaVPN-WireGuard/NovaVPN-WireGuard/
+
+      - name: Build AnBaLan 2.6.0
         working-directory: NovaVPN-WireGuard/NovaVPN-WireGuard
         run: |
           chmod +x gradlew
@@ -27,5 +32,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: AnBaLan-2.4.0-GameMode-APK
+          name: AnBaLan-2.6.0-APK
           path: NovaVPN-WireGuard/NovaVPN-WireGuard/app/build/outputs/apk/debug/*.apk
