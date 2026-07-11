@@ -72,6 +72,7 @@ fun VpnScreen(
     onDismissError: () -> Unit,
     overlayEnabled: Boolean,
     onToggleOverlay: () -> Unit,
+    onConnectAndLaunchGame: () -> Unit,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -121,6 +122,12 @@ fun VpnScreen(
                 onRemove = { showDeleteDialog = true },
             )
             Spacer(Modifier.height(12.dp))
+            GameLaunchCard(
+                enabled = state.hasConfig && !state.isBusy,
+                connected = state.status == ConnectionStatus.CONNECTED,
+                onClick = onConnectAndLaunchGame,
+            )
+            Spacer(Modifier.height(12.dp))
             OverlayControlCard(
                 enabled = overlayEnabled,
                 onToggle = onToggleOverlay,
@@ -150,6 +157,32 @@ fun VpnScreen(
                 TextButton(onClick = { showDeleteDialog = false }) { Text("Hủy") }
             },
             containerColor = NovaSurfaceHigh,
+        )
+    }
+}
+
+@Composable
+private fun GameLaunchCard(
+    enabled: Boolean,
+    connected: Boolean,
+    onClick: () -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth().height(58.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = NovaAccent,
+            contentColor = Color(0xFF03241A),
+            disabledContainerColor = NovaSurfaceHigh,
+            disabledContentColor = NovaMuted,
+        ),
+    ) {
+        Text(
+            if (connected) "MỞ FREE FIRE" else "BẬT VPN & MỞ FREE FIRE",
+            fontWeight = FontWeight.Black,
+            letterSpacing = 0.7.sp,
         )
     }
 }

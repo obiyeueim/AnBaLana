@@ -175,6 +175,13 @@ class FloatingOverlayService : Service() {
             openApp()
             return
         }
+        // Disconnecting mid-game changes the device route/IP and interrupts live
+        // UDP sessions. Require the full app for disconnect so an accidental tap
+        // on the overlay cannot freeze an active match.
+        if (VpnViewModel.overlayStatus() == ConnectionStatus.CONNECTED) {
+            openApp()
+            return
+        }
         if (!VpnViewModel.toggleFromOverlay()) openApp()
     }
 

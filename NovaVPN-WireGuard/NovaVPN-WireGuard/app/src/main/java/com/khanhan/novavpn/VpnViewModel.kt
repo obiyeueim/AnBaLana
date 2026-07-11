@@ -246,8 +246,13 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
         } ?: throw IllegalArgumentException("Không đọc được file đã chọn.")
 
         try {
-            val configText = rawBytes.toString(Charsets.UTF_8)
-            val parsed = Config.parse(ByteArrayInputStream(rawBytes))
+            val configText = optimizeForMobile(rawBytes.toString(Charsets.UTF_8))
+            val optimizedBytes = configText.toByteArray(Charsets.UTF_8)
+            val parsed = try {
+                Config.parse(ByteArrayInputStream(optimizedBytes))
+            } finally {
+                optimizedBytes.fill(0)
+            }
             if (parsed.peers.isEmpty()) throw IllegalArgumentException("Cấu hình chưa có máy chủ [Peer].")
             return ImportedConfig(
                 name = sanitizeTunnelName(displayName),
@@ -279,6 +284,50 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun extractEndpoint(configText: String): String? {
         return ENDPOINT_PATTERN.find(configText)?.groupValues?.getOrNull(1)?.trim()
+    }
+
+    /**
+     * Uses conservative mobile values without touching keys, addresses or routes.
+     * MTU 1280 avoids fragmentation on mixed IPv4/IPv6 mobile paths, while a
+     * 25-second keepalive keeps NAT mappings warm when the game is briefly idle.
+     */
+    private fun optimizeForMobile(configText: String): String {
+        val output = mutableListOf<String>()
+        var section = ""
+        var hasMtu = false
+        var hasKeepalive = false
+
+        fun finishSection() {
+            if (section == "interface" && !hasMtu) output += "MTU = 1280"
+            if (section == "peer" && !hasKeepalive) output += "PersistentKeepalive = 25"
+        }
+
+        configText.lineSequence().forEach { originalLine ->
+            val line = originalLine.trim()
+            if (line.startsWith("[") && line.endsWith("]")) {
+                finishSection()
+                section = line.removePrefix("[").removeSuffix("]").lowercase()
+                hasMtu = false
+                hasKeepalive = false
+                output += originalLine
+                return@forEach
+            }
+
+            val key = line.substringBefore('=', missingDelimiterValue = "").trim().lowercase()
+            when {
+                section == "interface" && key == "mtu" -> {
+                    output += "MTU = 1280"
+                    hasMtu = true
+                }
+                section == "peer" && key == "persistentkeepalive" -> {
+                    output += "PersistentKeepalive = 25"
+                    hasKeepalive = true
+                }
+                else -> output += originalLine
+            }
+        }
+        finishSection()
+        return output.joinToString("\n").trim() + "\n"
     }
 
     private fun readableError(error: Throwable, fallback: String): String {
