@@ -1,43 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.anbalan.app"> <!-- VUI LÒNG KIỂM TRA: Thay bằng tên package thực tế trong dự án của bạn nếu khác -->
 
+    <!-- 1. Quyền kết nối mạng và kiểm tra trạng thái Internet -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- 2. Quyền hiển thị Tab nổi (Overlay) trên màn hình game Free Fire -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- 3. Quyền duy trì dịch vụ nền (Bắt buộc từ Android 9 đến Android 14) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- 4. Quyền gửi thông báo (Bắt buộc cho Android 13+ để không bị hệ thống kill ngầm) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:name=".NovaVpnApplication"
         android:allowBackup="false"
-        android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="false"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
         android:label="AnBaLan"
-        android:networkSecurityConfig="@xml/network_security_config"
-        android:roundIcon="@drawable/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.NovaVPN"
-        android:usesCleartextTraffic="false">
+        android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
+        android:usesCleartextTraffic="true">
 
+        <!-- Màn hình chính (Cổng kiểm tra 2 quyền trước khi vào app) -->
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <!-- Dịch vụ điều khiển Tab nổi Jetpack Compose trên màn hình -->
+        <!-- Khai báo foregroundServiceType="specialUse" để tuân thủ chính sách Android 14 -->
         <service
             android:name=".FloatingOverlayService"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="User-enabled floating controls for the active VPN client" />
+            android:foregroundServiceType="specialUse"
+            android:enabled="true" />
+
+        <!-- Dịch vụ Core VPN Engine (Thay thế WireGuard) -->
+        <!-- BẮT BUỘC có android:permission="android.permission.BIND_VPN_SERVICE" để bảo mật -->
+        <service
+            android:name=".core.LocalVpnService"
+            android:exported="true"
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
         </service>
+
     </application>
 
 </manifest>

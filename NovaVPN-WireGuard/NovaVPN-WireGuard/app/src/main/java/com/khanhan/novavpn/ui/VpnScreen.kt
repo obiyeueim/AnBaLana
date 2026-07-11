@@ -162,6 +162,88 @@ fun VpnScreen(
 }
 
 @Composable
+fun PermissionGateScreen(
+    overlayGranted: Boolean,
+    vpnGranted: Boolean,
+    onRequestOverlay: () -> Unit,
+    onRequestVpn: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFF211016), NovaBackground, Color(0xFF050507)))),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 22.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            ShieldGlyph(Modifier.size(76.dp), NovaAccent)
+            Spacer(Modifier.height(22.dp))
+            Text("CẤP QUYỀN ĐỂ SỬ DỤNG", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+            Text(
+                "AnBaLan cần tab nổi để điều khiển trong game và quyền VPN của Android để tạo đường hầm.",
+                modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+                color = NovaMuted,
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                textAlign = TextAlign.Center,
+            )
+
+            PermissionButton(
+                title = "Hiển thị trên ứng dụng khác",
+                granted = overlayGranted,
+                onClick = onRequestOverlay,
+            )
+            Spacer(Modifier.height(12.dp))
+            PermissionButton(
+                title = "Cho phép kết nối VPN",
+                granted = vpnGranted,
+                onClick = onRequestVpn,
+            )
+            Spacer(Modifier.height(18.dp))
+            Text(
+                if (overlayGranted && vpnGranted) "Đã cấp đủ quyền" else "Cần cấp đủ 2 quyền để tiếp tục",
+                color = if (overlayGranted && vpnGranted) NovaAccent else NovaWarning,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PermissionButton(
+    title: String,
+    granted: Boolean,
+    onClick: () -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        enabled = !granted,
+        modifier = Modifier.fillMaxWidth().height(58.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = NovaAccent,
+            contentColor = Color(0xFF03241A),
+            disabledContainerColor = NovaAccent.copy(alpha = 0.14f),
+            disabledContentColor = NovaAccent,
+        ),
+    ) {
+        Text(
+            if (granted) "✓  $title" else title,
+            fontWeight = FontWeight.Black,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
 private fun GameLaunchCard(
     enabled: Boolean,
     connected: Boolean,

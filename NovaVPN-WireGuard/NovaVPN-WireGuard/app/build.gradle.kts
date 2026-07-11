@@ -1,21 +1,20 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
-    namespace = "com.khanhan.novavpn"
-    compileSdk = 35
-    buildToolsVersion = "35.0.1"
+    namespace = "com.anbalan.app"
+    compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.an.anbalan"
-        minSdk = 24
-        targetSdk = 35
-        versionCode = 7
-        versionName = "2.5.0"
+        applicationId = "com.anbalan.app"
+        minSdk = 26
+        targetSdk = 34
+        versionCode = 8
+        versionName = "2.6.0"
 
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -30,12 +29,17 @@ android {
                 "proguard-rules.pro"
             )
         }
+        debug {
+            isMinifyEnabled = false
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-DEBUG"
+        }
     }
 
+    // Đồng bộ Java 17 để khớp với GitHub Actions Workflow
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -47,29 +51,51 @@ android {
         buildConfig = true
     }
 
+    composeOptions {
+        // Sử dụng phiên bản compiler tương thích với Kotlin 1.9+
+        kotlinCompilerExtensionVersion = "1.5.8"
+    }
+
     packaging {
         resources {
-            excludes += setOf(
-                "META-INF/AL2.0",
-                "META-INF/LGPL2.1",
-                "META-INF/LICENSE.md",
-                "META-INF/NOTICE.md"
-            )
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/LICENSE"
+            excludes += "/META-INF/LICENSE.txt"
+            excludes += "/META-INF/license.txt"
+            excludes += "/META-INF/NOTICE"
+            excludes += "/META-INF/NOTICE.txt"
+            excludes += "/META-INF/notice.txt"
         }
     }
 }
 
 dependencies {
-    implementation(platform("androidx.compose:compose-bom:2025.05.01"))
-    implementation("androidx.activity:activity-compose:1.10.1")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
+    // 1. Core AndroidX & Lifecycle (Quản lý StateFlow, ViewModel, Foreground Service)
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-service:2.7.0")
+    implementation("androidx.savedstate:savedstate-ktx:1.2.1")
+
+    // 2. Jetpack Compose (UI & Floating Overlay)
+    implementation("androidx.activity:activity-compose:1.8.2")
+    val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
+    implementation(composeBom)
     implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
 
-    implementation("com.wireguard.android:tunnel:1.0.20260102")
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    // 3. Kotlin Coroutines (Xử lý Dispatchers.IO cho VpnService và Network loop)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
+    // 4. AndroidX Security (Hỗ trợ mã hóa Keystore nếu mở rộng cấu hình)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // 5. Tooling & Debugging
     debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

@@ -9,7 +9,8 @@
 - Game Mode nhẹ: không polling thống kê lưu lượng, không quét ping nền.
 - Tự chuẩn hóa MTU 1280 và PersistentKeepalive 25 khi nhập cấu hình.
 - Nút “Bật VPN & mở Free Fire” đợi tunnel ổn định trước khi khởi chạy game.
-- Tab nổi không ngắt tunnel giữa trận; muốn ngắt phải trở lại ứng dụng.
+- Tab nổi ON/OFF kết nối hoặc ngắt tunnel trực tiếp trong game.
+- Màn hình quyền bắt buộc: hiển thị trên ứng dụng khác và quyền VPN Android.
 - Màn hình mở TikTok một lần với liên kết `https://vt.tiktok.com/ZSXRafKgQ/`.
 - Tab nổi kéo thả; chạm ON/OFF để kết nối hoặc ngắt VPN, mở app hoặc đóng nhanh.
 - Trạng thái tab nổi cập nhật theo sự kiện StateFlow; nút ON/OFF không can thiệp gói game.
